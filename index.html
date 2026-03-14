@@ -43,6 +43,7 @@
   .q-preview-card:hover{border-color:var(--indigo2);box-shadow:var(--shadow2);transform:translateY(-1px);}
   .q-preview-card.conflict{border-left:4px solid var(--amber2);}
   .q-preview-card.ok{border-left:4px solid var(--green3);}
+  .q-preview-card.samediff{border-left:4px solid #3b82f6;}
   .q-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px;}
   .q-preview-text{flex:1;}
   .q-preview-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px;}
@@ -51,6 +52,7 @@
   .tag.sim{background:var(--bg3);color:var(--text2);}
   .tag.conflict{background:var(--warn-bg);color:var(--warn);}
   .tag.ok{background:var(--green2);color:var(--green);}
+  .tag.samediff{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;}
   .q-preview-q{font-size:.91rem;color:var(--text);font-weight:500;line-height:1.5;}
   .q-preview-arrow{color:var(--muted);font-size:1rem;flex-shrink:0;margin-top:2px;}
   #study{display:none;max-width:800px;margin:0 auto;padding:32px 24px 80px;}
@@ -119,7 +121,8 @@
   </div>
   <div class="stats-row">
     <div class="stat-pill"><div class="ico">📚</div><div><div class="val">11</div><div class="lbl">grupos</div></div></div>
-    <div class="stat-pill"><div class="ico">⚠️</div><div><div class="val">10</div><div class="lbl">con conflicto</div></div></div>
+    <div class="stat-pill"><div class="ico">⚠️</div><div><div class="val">9</div><div class="lbl">con conflicto</div></div></div>
+    <div class="stat-pill"><div class="ico">🔤</div><div><div class="val">1</div><div class="lbl">igual, distinta letra</div></div></div>
     <div class="stat-pill"><div class="ico">🔄</div><div><div class="val">7</div><div class="lbl">mismo módulo</div></div></div>
     <div class="stat-pill"><div class="ico">🔀</div><div><div class="val">4</div><div class="lbl">entre módulos</div></div></div>
   </div>
@@ -160,7 +163,7 @@
 <script>
 const DATA = {
   same: [
-    { conflict:true, versions:[
+    { conflict:false, sameTextDiffLetter:true, versions:[
       { mod:'M1', sim:1, label:'SIM_3', p:'¿Cuál es la función principal del cerebelo?',
         a:'Regular la actividad del corazón.', b:'Controlar la respiración.', c:'Coordinar los movimientos.', d:'Intervenir en la digestión.',
         ok:'C', r:'Correcta: C. Coordinar los movimientos.', ref:'(M1, p. 8)' },
@@ -184,7 +187,7 @@ const DATA = {
         a:'Tener en cuenta las características intelectuales, personales, potencialidades, déficit, etc.', b:'Adaptar la programación de aula a un alumno concreto.', c:'Partir del conocimiento previo del alumno.', d:'Realizar una evaluación psicopedagógica y curricular detallada.',
         ok:'B', r:'Correcta: B. Adaptar la programación de aula a un alumno concreto.', ref:'(M3, p. 120)' }
     ]},
-    { conflict:false, versions:[
+    { conflict:true, versions:[
       { mod:'M4', sim:1, label:'SIM_1', p:'¿Cuál es la primera fase del proceso de evaluación de las dificultades de aprendizaje?',
         a:'Obtención de información correspondiente.', b:'Planificación de la secuencia de procedimientos.', c:'Solicitud de intervención y evaluación de la situación inicial.', d:'Uso de instrumentos de evaluación.',
         ok:'C', r:'Correcta: C. Solicitud de intervención y evaluación de la situación inicial.', ref:'(M4, p. 7)' },
@@ -274,17 +277,23 @@ function renderList(containerId, groups, offset) {
   el.innerHTML = '';
   groups.forEach((group, i) => {
     const card = document.createElement('div');
-    card.className = `q-preview-card ${group.conflict ? 'conflict' : 'ok'}`;
+    card.className = `q-preview-card ${group.conflict ? 'conflict' : group.sameTextDiffLetter ? 'samediff' : 'ok'}`;
     card.onclick = () => startStudySingle(offset + i);
     const mods = [...new Set(group.versions.map(v => v.mod))];
     const labels = group.versions.map(v => v.label);
+    const statusIcon = group.conflict ? '⚠️' : (group.sameTextDiffLetter ? '🔤' : '✅');
+    const statusTag = group.conflict
+      ? '<span class="tag conflict">⚠️ Respuestas distintas</span>'
+      : group.sameTextDiffLetter
+        ? '<span class="tag samediff">🔤 Mismo texto, distinta letra</span>'
+        : '<span class="tag ok">✓ Respuesta igual</span>';
     card.innerHTML = `
-      <div class="q-icon">${group.conflict ? '⚠️' : '✅'}</div>
+      <div class="q-icon">${statusIcon}</div>
       <div class="q-preview-text">
         <div class="q-preview-tags">
           ${mods.map(m=>`<span class="tag mod">${m}</span>`).join('')}
           ${labels.map(l=>`<span class="tag sim">${l}</span>`).join('')}
-          <span class="tag ${group.conflict?'conflict':'ok'}">${group.conflict?'⚠️ Respuestas distintas':'✓ Respuesta igual'}</span>
+          ${statusTag}
         </div>
         <div class="q-preview-q">${group.versions[0].p}</div>
       </div>
@@ -339,6 +348,14 @@ function renderStudyGroup() {
       <div class="text">
         <strong>Esta pregunta tiene respuestas diferentes según la fuente</strong>
         Aparece en ${group.versions.length} versiones${mods.length > 1 ? ` (módulos: ${mods.join(', ')})` : ` dentro del módulo ${mods[0]}`}. Responde cada versión con su propio conjunto de opciones.
+      </div>
+    </div>`;
+  } else if (group.sameTextDiffLetter) {
+    html += `<div class="conflict-banner" style="background:#eff6ff;border-color:#93c5fd;">
+      <div class="icon">🔤</div>
+      <div class="text" style="color:#1e40af;">
+        <strong>La respuesta correcta es la misma, pero con letra diferente en cada versión</strong>
+        El contenido de la respuesta correcta coincide entre simulacros. Ojo con la letra al marcar tu respuesta en cada uno.
       </div>
     </div>`;
   }
